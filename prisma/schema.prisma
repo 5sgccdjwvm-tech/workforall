@@ -1,25 +1,237 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "sqlite" url = "file:./dev.db" }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum Role { ADMIN MANAGER EMPLOYEE }
-enum MovementType { SALE ENTRY EXIT INVENTORY ADJUSTMENT CORRECTION }
-enum AlertType { LOW_STOCK OUT_OF_STOCK INVENTORY_VARIANCE SYNC_ERROR UNKNOWN_POS_PRODUCT MISSING_RECIPE }
-model Company { id String @id @default(cuid()) name String establishments Establishment[] users User[] createdAt DateTime @default(now()) }
-model Establishment { id String @id @default(cuid()) name String companyId String company Company @relation(fields:[companyId],references:[id]) users User[] products Product[] categories Category[] suppliers Supplier[] recipes Recipe[] sales Sale[] movements StockMovement[] inventories Inventory[] alerts Alert[] posConnections POSConnection[] createdAt DateTime @default(now()) }
-model User { id String @id @default(cuid()) email String @unique name String password String role Role establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) auditLogs AuditLog[] movements StockMovement[] sales Sale[] createdAt DateTime @default(now()) }
-model AuditLog { id String @id @default(cuid()) action String entity String entityId String? userId String user User @relation(fields:[userId],references:[id]) createdAt DateTime @default(now()) }
-model Category { id String @id @default(cuid()) name String establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) products Product[] }
-model Supplier { id String @id @default(cuid()) name String contact String? establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) movements StockMovement[] }
-model Product { id String @id @default(cuid()) name String sku String? purchaseUnit String consumptionUnit String packagingSize Float @default(1) currentQty Float @default(0) minQty Float @default(0) unitPrice Float @default(0) active Boolean @default(true) establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) categoryId String? category Category? @relation(fields:[categoryId],references:[id]) recipeIngredients RecipeIngredient[] recipes Recipe[] anomalies Anomaly[] alerts Alert[] movements StockMovement[] saleLines SaleLine[] posMappings POSProductMapping[] createdAt DateTime @default(now()) }
-model Recipe { id String @id @default(cuid()) name String price Float @default(0) active Boolean @default(true) establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) productId String? product Product? @relation(fields:[productId],references:[id]) ingredients RecipeIngredient[] createdAt DateTime @default(now()) }
-model RecipeIngredient { id String @id @default(cuid()) quantity Float productId String product Product @relation(fields:[productId],references:[id]) recipeId String recipe Recipe @relation(fields:[recipeId],references:[id]) }
-model Sale { id String @id @default(cuid()) source String @default("MANUAL") total Float @default(0) soldAt DateTime @default(now()) establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) userId String? user User? @relation(fields:[userId],references:[id]) lines SaleLine[] }
-model SaleLine { id String @id @default(cuid()) quantity Float saleId String sale Sale @relation(fields:[saleId],references:[id]) productId String product Product @relation(fields:[productId],references:[id]) }
-model StockMovement { id String @id @default(cuid()) type MovementType quantity Float reason String? origin String @default("MANUAL") productId String product Product @relation(fields:[productId],references:[id]) establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) userId String? user User? @relation(fields:[userId],references:[id]) supplierId String? supplier Supplier? @relation(fields:[supplierId],references:[id]) createdAt DateTime @default(now()) }
-model Inventory { id String @id @default(cuid()) status String @default("DRAFT") comment String? establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) lines InventoryLine[] createdAt DateTime @default(now()) validatedAt DateTime? }
-model InventoryLine { id String @id @default(cuid()) theoretical Float real Float variance Float inventoryId String inventory Inventory @relation(fields:[inventoryId],references:[id]) productId String product Product @relation(fields:[productId],references:[id]) }
-model Anomaly { id String @id @default(cuid()) productId String product Product @relation(fields:[productId],references:[id]) variance Float percentage Float comment String? resolved Boolean @default(false) createdAt DateTime @default(now()) }
-model Alert { id String @id @default(cuid()) type AlertType message String read Boolean @default(false) productId String? product Product? @relation(fields:[productId],references:[id]) establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) createdAt DateTime @default(now()) }
-model POSConnection { id String @id @default(cuid()) name String status String @default("NON_CONNECTE") lastSync DateTime? syncCount Int @default(0) establishmentId String establishment Establishment @relation(fields:[establishmentId],references:[id]) logs SyncLog[] }
-model SyncLog { id String @id @default(cuid()) status String message String createdAt DateTime @default(now()) connectionId String connection POSConnection @relation(fields:[connectionId],references:[id]) }
-model POSProductMapping { id String @id @default(cuid()) externalName String productId String product Product @relation(fields:[productId],references:[id]) }
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Valeurs possibles (SQLite + Prisma 5 ne gèrent pas les enum) :
+// User.role          : ADMIN | MANAGER | EMPLOYEE
+// StockMovement.type : SALE | ENTRY | EXIT | INVENTORY | ADJUSTMENT | CORRECTION
+// Alert.type         : LOW_STOCK | OUT_OF_STOCK | INVENTORY_VARIANCE | SYNC_ERROR | UNKNOWN_POS_PRODUCT | MISSING_RECIPE
+
+model Company {
+  id             String          @id @default(cuid())
+  name           String
+  establishments Establishment[]
+  createdAt      DateTime        @default(now())
+}
+
+model Establishment {
+  id             String          @id @default(cuid())
+  name           String
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id])
+  users          User[]
+  products       Product[]
+  categories     Category[]
+  suppliers      Supplier[]
+  recipes        Recipe[]
+  sales          Sale[]
+  movements      StockMovement[]
+  inventories    Inventory[]
+  alerts         Alert[]
+  posConnections POSConnection[]
+  createdAt      DateTime        @default(now())
+}
+
+model User {
+  id              String          @id @default(cuid())
+  email           String          @unique
+  name            String
+  password        String
+  role            String          @default("EMPLOYEE")
+  establishmentId String
+  establishment   Establishment   @relation(fields: [establishmentId], references: [id])
+  auditLogs       AuditLog[]
+  movements       StockMovement[]
+  sales           Sale[]
+  createdAt       DateTime        @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id              String        @id @default(cuid())
+  name            String
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  products        Product[]
+}
+
+model Supplier {
+  id              String          @id @default(cuid())
+  name            String
+  contact         String?
+  establishmentId String
+  establishment   Establishment   @relation(fields: [establishmentId], references: [id])
+  movements       StockMovement[]
+}
+
+model Product {
+  id                String              @id @default(cuid())
+  name              String
+  sku               String?
+  purchaseUnit      String
+  consumptionUnit   String
+  packagingSize     Float               @default(1)
+  currentQty        Float               @default(0)
+  minQty            Float               @default(0)
+  unitPrice         Float               @default(0)
+  active            Boolean             @default(true)
+  establishmentId   String
+  establishment     Establishment       @relation(fields: [establishmentId], references: [id])
+  categoryId        String?
+  category          Category?           @relation(fields: [categoryId], references: [id])
+  recipeIngredients RecipeIngredient[]
+  recipes           Recipe[]
+  anomalies         Anomaly[]
+  alerts            Alert[]
+  movements         StockMovement[]
+  saleLines         SaleLine[]
+  inventoryLines    InventoryLine[]
+  posMappings       POSProductMapping[]
+  createdAt         DateTime            @default(now())
+}
+
+model Recipe {
+  id              String             @id @default(cuid())
+  name            String
+  price           Float              @default(0)
+  active          Boolean            @default(true)
+  establishmentId String
+  establishment   Establishment      @relation(fields: [establishmentId], references: [id])
+  productId       String?
+  product         Product?           @relation(fields: [productId], references: [id])
+  ingredients     RecipeIngredient[]
+  createdAt       DateTime           @default(now())
+}
+
+model RecipeIngredient {
+  id        String  @id @default(cuid())
+  quantity  Float
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  recipeId  String
+  recipe    Recipe  @relation(fields: [recipeId], references: [id])
+}
+
+model Sale {
+  id              String        @id @default(cuid())
+  source          String        @default("MANUAL")
+  total           Float         @default(0)
+  soldAt          DateTime      @default(now())
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  lines           SaleLine[]
+}
+
+model SaleLine {
+  id        String  @id @default(cuid())
+  quantity  Float
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model StockMovement {
+  id              String        @id @default(cuid())
+  type            String
+  quantity        Float
+  reason          String?
+  origin          String        @default("MANUAL")
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  supplierId      String?
+  supplier        Supplier?     @relation(fields: [supplierId], references: [id])
+  createdAt       DateTime      @default(now())
+}
+
+model Inventory {
+  id              String          @id @default(cuid())
+  status          String          @default("DRAFT")
+  comment         String?
+  establishmentId String
+  establishment   Establishment   @relation(fields: [establishmentId], references: [id])
+  lines           InventoryLine[]
+  createdAt       DateTime        @default(now())
+  validatedAt     DateTime?
+}
+
+model InventoryLine {
+  id          String    @id @default(cuid())
+  theoretical Float
+  real        Float
+  variance    Float
+  inventoryId String
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+}
+
+model Anomaly {
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  variance   Float
+  percentage Float
+  comment    String?
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model Alert {
+  id              String        @id @default(cuid())
+  type            String
+  message         String
+  read            Boolean       @default(false)
+  productId       String?
+  product         Product?      @relation(fields: [productId], references: [id])
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  createdAt       DateTime      @default(now())
+}
+
+model POSConnection {
+  id              String        @id @default(cuid())
+  name            String
+  status          String        @default("NON_CONNECTE")
+  lastSync        DateTime?
+  syncCount       Int           @default(0)
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  logs            SyncLog[]
+}
+
+model SyncLog {
+  id           String        @id @default(cuid())
+  status       String
+  message      String
+  createdAt    DateTime      @default(now())
+  connectionId String
+  connection   POSConnection @relation(fields: [connectionId], references: [id])
+}
+
+model POSProductMapping {
+  id           String  @id @default(cuid())
+  externalName String
+  productId    String
+  product      Product @relation(fields: [productId], references: [id])
+}
