@@ -1,0 +1,1 @@
+import type {Config} from 'tailwindcss'; export default {content:['./app/**/*.{ts,tsx}'],theme:{extend:{fontFamily:{display:['Georgia','serif']}}},plugins:[]} satisfies Config;

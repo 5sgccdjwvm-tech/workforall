@@ -1,0 +1,6 @@
+# Notes de recherche et limites
+
+- La recherche web du 25 septembre 2026 a confirmé l’établissement **Repas Rooftop Bistronomie**, Bahnhofstrasse 14, 2502 Biel/Bienne, téléphone +41 32 325 40 40, e-mail info@repas-biel.ch, ainsi que l’existence d’un menu saisonnier publié sur `https://www.repas-biel.ch/fr/menu/`.
+- Le menu public consulté expose surtout une carte bistronomique saisonnière (snacks, entrées, plats, desserts) et indique que l’assortiment de vins accompagne les plats. Les prix et une carte complète des boissons ne sont pas tous publiés dans les résultats accessibles. Les données softs/boissons du seed sont donc une base de démonstration signalée, et non des prix inventés présentés comme officiels.
+- Aucun fichier image de logo n’était présent dans l’archive source inspectée. Le fichier logo n’a donc pas été modifié ; l’interface utilise une signature texte WFA en noir/orange en attendant l’asset officiel.
+- L’import PDF texte côté navigateur effectue une détection locale simple sur le contenu disponible. Les images sont acceptées et ouvrent une saisie assistée avant validation ; un OCR Tesseract serveur complet nécessiterait un endpoint/backend dédié et n’est pas installé dans ce projet Next initial.
