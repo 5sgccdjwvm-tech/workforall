@@ -1,8 +1,8 @@
 import { handleWebhook } from '../../../../lib/pos/webhook.mjs';
-import { createMemoryStore } from '../../../../lib/pos/memoryStore.mjs';
+import { createPrismaStore } from '../../../../lib/pos/prismaStore.mjs';
 
 export const runtime = 'nodejs';
-const store = createMemoryStore(); // TODO: remplacer par l'adaptateur Prisma
+const store = createPrismaStore();
 
 export async function POST(req: Request) {
   const secret = process.env.LIGHTSPEED_WEBHOOK_SECRET;
