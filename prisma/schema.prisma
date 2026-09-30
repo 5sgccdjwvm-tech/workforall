@@ -11,6 +11,9 @@ datasource db {
 // User.role          : ADMIN | MANAGER | EMPLOYEE
 // StockMovement.type : SALE | ENTRY | EXIT | INVENTORY | ADJUSTMENT | CORRECTION
 // Alert.type         : LOW_STOCK | OUT_OF_STOCK | INVENTORY_VARIANCE | SYNC_ERROR | UNKNOWN_POS_PRODUCT | MISSING_RECIPE
+// POSConnection.status : NON_CONNECTE | CONNECTE | ERREUR
+// SyncLog.status       : SUCCESS | PARTIAL | FAILED
+// Sale.source          : MANUAL | LIGHTSPEED
 
 model Company {
   id             String          @id @default(cuid())
@@ -20,21 +23,22 @@ model Company {
 }
 
 model Establishment {
-  id             String          @id @default(cuid())
-  name           String
-  companyId      String
-  company        Company         @relation(fields: [companyId], references: [id])
-  users          User[]
-  products       Product[]
-  categories     Category[]
-  suppliers      Supplier[]
-  recipes        Recipe[]
-  sales          Sale[]
-  movements      StockMovement[]
-  inventories    Inventory[]
-  alerts         Alert[]
-  posConnections POSConnection[]
-  createdAt      DateTime        @default(now())
+  id                 String               @id @default(cuid())
+  name               String
+  companyId          String
+  company            Company              @relation(fields: [companyId], references: [id])
+  users              User[]
+  products           Product[]
+  categories         Category[]
+  suppliers          Supplier[]
+  recipes            Recipe[]
+  sales              Sale[]
+  movements          StockMovement[]
+  inventories        Inventory[]
+  alerts             Alert[]
+  posConnections     POSConnection[]
+  unmappedPOSProducts UnmappedPOSProduct[]
+  createdAt          DateTime             @default(now())
 }
 
 model User {
@@ -127,15 +131,21 @@ model RecipeIngredient {
 }
 
 model Sale {
-  id              String        @id @default(cuid())
-  source          String        @default("MANUAL")
-  total           Float         @default(0)
-  soldAt          DateTime      @default(now())
+  id              String         @id @default(cuid())
+  source          String         @default("MANUAL")
+  // Identifiant de la vente côté caisse : empêche de décompter deux fois la même vente
+  externalId      String?
+  total           Float          @default(0)
+  soldAt          DateTime       @default(now())
   establishmentId String
-  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+  establishment   Establishment  @relation(fields: [establishmentId], references: [id])
   userId          String?
-  user            User?         @relation(fields: [userId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
+  connectionId    String?
+  connection      POSConnection? @relation(fields: [connectionId], references: [id])
   lines           SaleLine[]
+
+  @@unique([source, externalId])
 }
 
 model SaleLine {
@@ -210,28 +220,83 @@ model Alert {
 }
 
 model POSConnection {
-  id              String        @id @default(cuid())
-  name            String
-  status          String        @default("NON_CONNECTE")
-  lastSync        DateTime?
-  syncCount       Int           @default(0)
-  establishmentId String
-  establishment   Establishment @relation(fields: [establishmentId], references: [id])
-  logs            SyncLog[]
+  id                    String               @id @default(cuid())
+  name                  String
+  provider              String               @default("LIGHTSPEED")
+  // X | R | K (variante Lightspeed)
+  variant               String?
+  externalAccountId     String?
+  status                String               @default("NON_CONNECTE")
+  // Jetons chiffrés avec POS_ENCRYPTION_KEY (lib/pos/crypto.mjs), jamais en clair
+  encryptedAccessToken  String?
+  encryptedRefreshToken String?
+  tokenExpiresAt        DateTime?
+  lastSync              DateTime?
+  // Curseur : date de la dernière vente importée
+  lastSaleCursor        DateTime?
+  syncCount             Int                  @default(0)
+  establishmentId       String
+  establishment         Establishment        @relation(fields: [establishmentId], references: [id])
+  logs                  SyncLog[]
+  sales                 Sale[]
+  mappings              POSProductMapping[]
+  unmappedProducts      UnmappedPOSProduct[]
+  webhookEvents         WebhookEvent[]
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @default(now()) @updatedAt
 }
 
 model SyncLog {
-  id           String        @id @default(cuid())
-  status       String
-  message      String
-  createdAt    DateTime      @default(now())
-  connectionId String
-  connection   POSConnection @relation(fields: [connectionId], references: [id])
+  id            String        @id @default(cuid())
+  status        String
+  message       String
+  trigger       String        @default("MANUAL")
+  salesImported Int           @default(0)
+  salesSkipped  Int           @default(0)
+  errors        Int           @default(0)
+  createdAt     DateTime      @default(now())
+  finishedAt    DateTime?
+  connectionId  String
+  connection    POSConnection @relation(fields: [connectionId], references: [id])
 }
 
 model POSProductMapping {
-  id           String  @id @default(cuid())
+  id           String         @id @default(cuid())
+  externalId   String?
   externalName String
   productId    String
-  product      Product @relation(fields: [productId], references: [id])
+  product      Product        @relation(fields: [productId], references: [id])
+  connectionId String?
+  connection   POSConnection? @relation(fields: [connectionId], references: [id])
+  createdAt    DateTime       @default(now())
+
+  @@unique([connectionId, externalId])
+}
+
+// Liste « Produits à associer » : article vendu en caisse sans correspondance
+model UnmappedPOSProduct {
+  id              String        @id @default(cuid())
+  externalId      String
+  externalName    String
+  occurrences     Int           @default(1)
+  lastSeenAt      DateTime      @default(now())
+  resolved        Boolean       @default(false)
+  connectionId    String
+  connection      POSConnection @relation(fields: [connectionId], references: [id])
+  establishmentId String
+  establishment   Establishment @relation(fields: [establishmentId], references: [id])
+
+  @@unique([connectionId, externalId])
+}
+
+// Journal des webhooks reçus : sert à écarter les doublons
+model WebhookEvent {
+  id           String         @id @default(cuid())
+  eventId      String         @unique
+  type         String
+  payload      String
+  processed    Boolean        @default(false)
+  receivedAt   DateTime       @default(now())
+  connectionId String?
+  connection   POSConnection? @relation(fields: [connectionId], references: [id])
 }

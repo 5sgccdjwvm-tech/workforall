@@ -1,14 +1,8 @@
-name: POS tests
-on:
-  push:
-    branches: [main, feature/pos-connectors]
-  pull_request:
+# Remplacé par ci.yml. Conservé vide volontairement : ne se déclenche que manuellement.
+name: POS tests (obsolète)
+on: workflow_dispatch
 jobs:
-  test:
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: node --test tests/pos/
+      - run: echo "Voir ci.yml"
