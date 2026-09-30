@@ -1,0 +1,8 @@
+# Remplacé par ci.yml. Conservé vide volontairement : ne se déclenche que manuellement.
+name: POS tests (obsolète)
+on: workflow_dispatch
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Voir ci.yml"

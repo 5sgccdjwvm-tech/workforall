@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feature/**]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Installer les dépendances
+        run: npm install --no-audit --no-fund
+      - name: Valider le schéma Prisma
+        run: npx prisma validate
+      - name: Générer le client Prisma
+        run: npx prisma generate
+      - name: Créer la base de test
+        run: npx prisma db push --skip-generate
+      - name: Tests POS
+        run: node --test tests/pos/
+      - name: Build Next.js (inclut la vérification des types)
+        run: npm run build
+        env:
+          NEXTAUTH_SECRET: ci-only-secret
+          NEXTAUTH_URL: http://localhost:3000
